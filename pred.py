@@ -71,17 +71,32 @@ def main():
     BOX_SIZE = 48
     PERCENTILE = 99.999
 
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    # Cross-platform device detection: CUDA (NVIDIA) -> MPS (Apple Silicon) -> CPU
     if not use_cpu:
-        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_id
         if torch.cuda.is_available():
+            # NVIDIA CUDA backend
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = gpu_id
             n_gpus = torch.cuda.device_count()
-            print(f"# Running on {n_gpus} GPU(s)")
+            device = torch.device("cuda")
+            device_type = "cuda"
+            print(f"# Running on {n_gpus} NVIDIA GPU(s) with CUDA")
+        elif torch.backends.mps.is_available():
+            # Apple Metal Performance Shaders backend
+            n_gpus = 1  # MPS supports single device per process
+            device = torch.device("mps")
+            device_type = "mps"
+            print(f"# Running on Apple Silicon GPU with Metal Performance Shaders")
+            if gpu_id != "0":
+                print(f"# Note: MPS backend uses unified memory. GPU ID '{gpu_id}' parameter ignored.")
         else:
-            raise RuntimeError("CUDA not available")
+            raise RuntimeError("No GPU backend available. CUDA: not available, MPS: not available. Use --use_cpu to run on CPU.")
     else:
         n_gpus = 0
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        device = torch.device("cpu")
+        device_type = "cpu"
+        if torch.cuda.is_available():
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
         print("# Running on CPU")
 
     if not (48 >= stride >= 6):
@@ -103,7 +118,7 @@ def main():
         model_state_dict_file = f"{model_dir}/model_grid_size_0.5.pth"
 
     if not use_cpu:
-        model_state_dict = torch.load(model_state_dict_file)
+        model_state_dict = torch.load(model_state_dict_file, map_location=device)
     else:
         model_state_dict = torch.load(model_state_dict_file, map_location=torch.device('cpu'))
 
@@ -120,9 +135,17 @@ def main():
     model.load_state_dict(model_state_dict)
 
     if not use_cpu:
-        torch.cuda.empty_cache()
-        model = model.cuda()
-        if n_gpus > 1:
+        # Clear GPU memory cache if available
+        if device_type == "cuda":
+            torch.cuda.empty_cache()
+        elif device_type == "mps":
+            torch.mps.empty_cache()
+
+        # Transfer model to GPU
+        model = model.to(device)
+
+        # Multi-GPU support (CUDA only, MPS doesn't support DataParallel)
+        if device_type == "cuda" and n_gpus > 1:
             model = nn.DataParallel(model)
 
     model.eval()
@@ -282,7 +305,7 @@ def main():
 
             X = V(FT(chunks), requires_grad=False).view(-1, 1, BOX_SIZE, BOX_SIZE, BOX_SIZE)
             if not use_cpu:
-                X = X.cuda()
+                X = X.to(device)
 
             y_pred = model(X).view(-1, BOX_SIZE, BOX_SIZE, BOX_SIZE)
             y_pred = y_pred.cpu().detach().numpy()
