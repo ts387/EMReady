@@ -18,11 +18,13 @@ Copyright (C) 2023 Jiahua He, Tao Li, Sheng-You Huang and Huazhong University of
 
 **Platform**:
 - **Linux** (Mainly tested on CentOS 7) with NVIDIA GPU
-- **macOS** (M1/M2/M3 and later M-Series chips) with Metal GPU acceleration
+- **macOS 12.3+** (M1/M2/M3 and later M-Series chips) with Metal GPU acceleration
 
 **GPU**:
 - **Linux**: NVIDIA GPU with >10 GB VRAM required. Advanced GPUs like A100 are recommended.
-- **macOS**: M-Series Mac with unified memory. Recommended: 32GB+ unified memory for optimal performance.
+- **macOS**: M-Series Mac (Apple Silicon) with unified memory. Recommended: 32GB+ unified memory for optimal performance.
+
+**Important**: Intel Macs with AMD GPUs are **not supported** for GPU acceleration. PyTorch's Metal Performance Shaders (MPS) backend only works on Apple Silicon. Intel Mac users must use `--use_cpu` for CPU-only mode.
 
 
 
@@ -48,10 +50,12 @@ conda env create -f environment_linux.yml
 conda env create -f environment_macos.yml
 ```
 
-#### Generic installation (auto-detects platform):
+#### Generic installation (CPU-only or for development):
 ```
 conda env create -f environment.yml
 ```
+
+**⚠️ Warning**: The generic `environment.yml` does **not** include CUDA drivers for NVIDIA GPUs or platform-specific optimizations. For GPU acceleration, use the platform-specific files above (`environment_linux.yml` or `environment_macos.yml`).
 
 **Note**: If conda fails, you can install packages manually. First create an environment named **emready_env** by `conda create -n emready_env python=3.9`, then install the packages listed in the appropriate environment file using conda or pip.
 
@@ -109,6 +113,8 @@ Options:
 4. **Platform-Specific Notes**:
    - **macOS M-Series**: Multi-GPU is not supported due to Metal limitations. The `-g` GPU_ID parameter is ignored.
    - **Linux**: Multi-GPU support available via comma-separated GPU IDs (e.g., `-g 2,3,6`).
+
+5. **MPS Backend Notice**: The Metal Performance Shaders (MPS) backend for Apple Silicon is newer than CUDA. While results are expected to be equivalent, slight numerical differences may occur between CUDA and MPS outputs due to different GPU architectures and floating-point optimization strategies. This is normal behavior and should not affect scientific conclusions.
 
 
 ## 📝 Citation

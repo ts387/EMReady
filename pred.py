@@ -90,7 +90,13 @@ def main():
             if gpu_id != "0":
                 print(f"# Note: MPS backend uses unified memory. GPU ID '{gpu_id}' parameter ignored.")
         else:
-            raise RuntimeError("No GPU backend available. CUDA: not available, MPS: not available. Use --use_cpu to run on CPU.")
+            raise RuntimeError(
+                "No GPU backend available. CUDA: not available, MPS: not available.\n"
+                "  - For NVIDIA GPUs: Ensure CUDA drivers are installed and pytorch-cuda is in your environment\n"
+                "  - For Apple Silicon: Ensure you have macOS 12.3+ and an M-Series chip\n"
+                "  - Intel Macs with AMD GPUs are not supported for GPU acceleration\n"
+                "Use --use_cpu to run on CPU instead."
+            )
     else:
         n_gpus = 0
         device = torch.device("cpu")
@@ -140,6 +146,9 @@ def main():
             torch.cuda.empty_cache()
         elif device_type == "mps":
             torch.mps.empty_cache()
+        else:
+            # Defensive: handle unexpected device types
+            print(f"# Warning: Unknown device type '{device_type}', skipping cache clear")
 
         # Transfer model to GPU
         model = model.to(device)
