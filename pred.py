@@ -81,7 +81,7 @@ def main():
             device = torch.device("cuda")
             device_type = "cuda"
             print(f"# Running on {n_gpus} NVIDIA GPU(s) with CUDA")
-        elif torch.backends.mps.is_available():
+        elif torch.backends.mps.is_built() and torch.backends.mps.is_available():
             # Apple Metal Performance Shaders backend
             n_gpus = 1  # MPS supports single device per process
             device = torch.device("mps")
@@ -124,9 +124,9 @@ def main():
         model_state_dict_file = f"{model_dir}/model_grid_size_0.5.pth"
 
     if not use_cpu:
-        model_state_dict = torch.load(model_state_dict_file, map_location=device)
+        model_state_dict = torch.load(model_state_dict_file, map_location=device, weights_only=True)
     else:
-        model_state_dict = torch.load(model_state_dict_file, map_location=torch.device('cpu'))
+        model_state_dict = torch.load(model_state_dict_file, map_location=torch.device('cpu'), weights_only=True)
 
     model = SCUNet(
         in_nc=1,
@@ -317,6 +317,12 @@ def main():
                 X = X.to(device)
 
             y_pred = model(X).view(-1, BOX_SIZE, BOX_SIZE, BOX_SIZE)
+
+            # Synchronize MPS operations before transferring to CPU to ensure
+            # all GPU computations are complete and prevent memory pressure issues
+            if device_type == "mps":
+                torch.mps.synchronize()
+
             y_pred = y_pred.cpu().detach().numpy()
 
             map_pred, denominator = map_batch_to_map(map_pred, denominator, positions, y_pred, BOX_SIZE)

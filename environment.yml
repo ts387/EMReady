@@ -6,14 +6,13 @@ channels:
 dependencies:
   - python=3.9
   - pip=23.3
-  - pytorch==2.0.0
-  - torchvision==0.15.0
-  - torchaudio==2.0.0
+  - pytorch>=2.1.0
+  - torchvision>=0.16.0
+  - torchaudio>=2.1.0
   # Platform-specific GPU support:
-  # - For Linux with NVIDIA GPUs: use environment_linux.yml (includes pytorch-cuda==11.7)
+  # - For Linux with NVIDIA GPUs: use environment_linux.yml (includes pytorch-cuda)
   # - For macOS with M-Series: use environment_macos.yml (MPS support built-in)
-  # This generic file works for both platforms
-  - mkl==2020.0
+  # This generic file is for CPU-only or development use
   - numba==0.60.0
   - pip:
     - biopython==1.81
